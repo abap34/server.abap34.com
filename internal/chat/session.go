@@ -273,13 +273,14 @@ func (cs *ChatSession) History(count int) {
 
 func HandleSession(s ssh.Session) {		
 	// Try public key authentication first
+	authPassed := false
+
 	if pk := s.PublicKey(); pk != nil {
-		log.Printf("Public key authentication!")
 		err := authenticateViaPublicKey(s, pk)
 		if err != nil {
-			s.Write([]byte("Public key authentication failed: " + err.Error() + "\n"))
-			s.Exit(1)
-			return
+			s.Write([]byte("Public key authentication not passed. Please authenticate with GitHub.\n"))
+		} else {
+			authPassed = true
 		}
 	}
 
@@ -299,7 +300,9 @@ func HandleSession(s ssh.Session) {
 		Username: s.User(), 
 	}
 
-	if s.PublicKey() == nil {
+
+
+	if !authPassed {
 		if err := authenticateGitHub(cs); err != nil {
 			cs.Writeln("GitHub authentication failed. Exiting.")
 			s.Exit(1)
