@@ -3,7 +3,7 @@ WORKDIR /app
 COPY go.mod ./
 RUN go mod tidy && go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o abap34-server ./cmd/abap34-server/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o abap34-server main.go
 
 FROM alpine:latest
 RUN apk add --no-cache ca-certificates
