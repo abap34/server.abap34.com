@@ -1,0 +1,15 @@
+FROM golang:1.23-alpine
+
+RUN apk add --no-cache git
+
+RUN go install github.com/air-verse/air@latest
+
+WORKDIR /app
+
+COPY go.mod ./
+RUN go mod tidy && go mod download
+
+COPY . .
+
+EXPOSE 2222
+CMD ["air"]

@@ -1,0 +1,46 @@
+version: '3.8'
+services:
+  mariadb:
+    image: mariadb:10.5
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: chatdb
+      MYSQL_USER: chatuser
+      MYSQL_PASSWORD: chatpass
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  abap34-server:
+    build: .
+    container_name: abap34-server
+    ports:
+      - "2222:2222"
+    volumes:
+      - ./data:/data
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: "3306"
+      DB_USER: chatuser
+      DB_PASS: chatpass
+      DB_NAME: chatdb
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+
+volumes:
+  db_data:
