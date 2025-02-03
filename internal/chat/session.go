@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -37,6 +38,39 @@ func (cs *ChatSession) Write(msg string) {
 
 func (cs *ChatSession) Writeln(msg string) {
 	cs.Write(msg + "\n")
+}
+
+func authenticateViaPublicKey(s ssh.Session, pk ssh.PublicKey) error {
+	username := s.User()
+	url := fmt.Sprintf("https://github.com/%s.keys", username)
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve GitHub public keys: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to retrieve keys, status: %d", resp.StatusCode)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading keys: %v", err)
+	}
+	keysStr := string(data)
+	lines := strings.Split(keysStr, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		authorizedKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(line))
+		if err != nil {
+			continue
+		}
+		if ssh.KeysEqual(pk, authorizedKey) {
+			return nil
+		}
+	}
+	return fmt.Errorf("no matching public key found for GitHub user %s", username)
 }
 
 func authenticateGitHub(cs *ChatSession) error {
@@ -81,6 +115,7 @@ func authenticateGitHub(cs *ChatSession) error {
 
 	cs.Username = githubUser
 	cs.Writeln("Authentication successful! You are logged in as " + util.Colorize(cs.Username))
+	cs.Writeln(util.Boldstring("Hint: You can pass your public which registered in GitHub to authenticate directly and skip this step. next time. details: https://github.com/abap34/server.abap34.com/blob/main/README.md#login"))
 	return nil
 }
 
@@ -236,26 +271,42 @@ func (cs *ChatSession) History(count int) {
 	}
 }
 
-func HandleSession(s ssh.Session) {
+func HandleSession(s ssh.Session) {		
+	// Try public key authentication first
+	if pk := s.PublicKey(); pk != nil {
+		log.Printf("Public key authentication!")
+		err := authenticateViaPublicKey(s, pk)
+		if err != nil {
+			s.Write([]byte("Public key authentication failed: " + err.Error() + "\n"))
+			s.Exit(1)
+			return
+		}
+	}
+
 	_, _, isPty := s.Pty()
+
 	if !isPty {
 		s.Write([]byte("This session requires a PTY. Please connect with a terminal.\n"))
 		s.Exit(1)
 		return
 	}
+	
 	term := term.NewTerminal(s, "> ")
 	cs := &ChatSession{
 		Session:  s,
 		Term:     term,
 		Prompt:   "> ",
-		Username: s.User(),
+		Username: s.User(), 
 	}
 
-	if err := authenticateGitHub(cs); err != nil {
-		cs.Writeln("GitHub authentication failed. Exiting.")
-		s.Exit(1)
-		return
+	if s.PublicKey() == nil {
+		if err := authenticateGitHub(cs); err != nil {
+			cs.Writeln("GitHub authentication failed. Exiting.")
+			s.Exit(1)
+			return
+		}
 	}
+
 
 	RegisterSession(cs)
 	cs.Writeln(util.Boldstring(util.Colorize("==== Welcome to abap34's chat server! ====")))

@@ -9,6 +9,8 @@ import (
 	"github.com/gliderlabs/ssh"
 )
 
+
+
 func main() {
 	db.Init()
 
@@ -17,7 +19,11 @@ func main() {
 	port := "2222"
 	log.Printf("abap34's server starting on port %s...", port)
 
-	if err := ssh.ListenAndServe(":"+port, nil, ssh.HostKeyFile("/data/ssh_host_key")); err != nil {
+	publicKeyOption := ssh.PublicKeyAuth(func(ctx ssh.Context, key ssh.PublicKey) bool {
+		return true 
+	})
+
+	if err := ssh.ListenAndServe(":"+port, nil, publicKeyOption); err != nil {
 		log.Fatal(err)
 	}
 }
