@@ -26,12 +26,12 @@ services:
     volumes:
       - ./data:/data
     environment:
-      DB_HOST: mariadb
-      DB_PORT: "3306"
-      DB_USER: chatuser
-      DB_PASS: chatpass
-      DB_NAME: chatdb
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      DB_HOST: $DB_HOST
+      DB_PORT: $DB_PORT
+      DB_USER: $DB_USER
+      DB_PASS: $DB_PASS
+      DB_NAME: $DB_NAME
+      GITHUB_CLIENT_ID: $GITHUB_CLIENT_ID
     depends_on:
       mariadb:
         condition: service_healthy
