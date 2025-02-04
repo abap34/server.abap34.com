@@ -63,7 +63,7 @@ func LoadMessages(channel string, limit int) ([]string, error) {
 		if err := rows.Scan(&username, &message); err != nil {
 			return nil, err
 		}
-		messages = append(messages, fmt.Sprintf("%s: %s", username, message))
+		messages = append(messages, message)
 	}
 
 	// Reverse the order of messages
