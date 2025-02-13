@@ -74,6 +74,66 @@ func (cs *ChatSession) redrawScreen() {
 	cs.Write(cs.Prompt)
 }
 
+func WelcomeMessage(cs *ChatSession) {
+	cs.addLocalMessage(util.Boldstring(util.Colorize(`
+         _         ____       _        ____     _____    _  _      \ _      ____
+     U  /"\  u  U | __")u U  /"\  u  U|  _"\ u |___"/u  | ||"|      |"|    / __"| u
+      \/ _ \/    \|  _ \/  \/ _ \/   \| |_) |/ U_|_ \/  | || |_     |_|   <\___ \/
+      / ___ \     | |_) |  / ___ \    |  __/    ___) |  |__   _|           u___) |
+     /_/   \_\    |____/  /_/   \_\   |_|      |____/     /|_|\            |____/>>
+      \\    >>   _|| \\_   \\    >>   ||>>_     _// \\   u_|||_u            )(  (__)
+     (__)  (__) (__) (__) (__)  (__) (__)__)   (__)(__)  (__)__)           (__)
+`, util.Cyan)))
+
+	cs.addLocalMessage((util.Boldstring(util.Colorize(
+		`
+          .----------------.  .----------------.  .----------------.  .----------------.  .----------------.  .----------------.
+         | .--------------. || .--------------. || .--------------. || .--------------. || .--------------. || .--------------. |
+         | |    _______   | || |  _________   | || |  _______     | || | ____   ____  | || |  _________   | || |  _______     | |
+         | |   /  ___  |  | || | |_   ___  |  | || | |_   __ \    | || ||_  _| |_  _| | || | |_   ___  |  | || | |_   __ \    | |
+         | |  |  (__ \_|  | || |   | |_  \_|  | || |   | |__) |   | || |  \ \   / /   | || |   | |_  \_|  | || |   | |__) |   | |
+         | |   \  \__     | || |   |  _|  _   | || |   |  __ /    | || |   \ \ / /    | || |   |  _|  _   | || |   |  __ /    | |
+         | |  | \____) |  | || |  _| |___/ |  | || |  _| |  \ \_  | || |    \ ' /     | || |  _| |___/ |  | || |  _| |  \ \_  | |
+         | |  |_______.'  | || | |_________|  | || | |____| |___| | || |     \_/      | || | |_________|  | || | |____| |___| | |
+         | |              | || |              | || |              | || |              | || |              | || |              | |
+         | '--------------' || '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |
+          '----------------'  '----------------'  '----------------'  '----------------'  '----------------'  '----------------'
+`, util.Red))))
+
+	cs.addLocalMessage(util.Boldstring(util.Colorize("     WELCOME TO ABAP34'S CHAT SERVER!", "")))
+	cs.addLocalMessage(util.Boldstring(util.Colorize("     Your username is: "+cs.Username, "")))
+	cs.addLocalMessage(util.Boldstring(util.Colorize("         ┌────────────────────────────────────────────────────────────────────────────┐", util.LightBlue)))
+	cs.addLocalMessage(util.Boldstring(util.Colorize("         │  Type /help for a list of commands.                                        │", util.LightBlue)))
+	cs.addLocalMessage(util.Boldstring(util.Colorize("         │  Type /join <channel> to join a channel.                                   │", util.LightBlue)))
+	cs.addLocalMessage(util.Boldstring(util.Colorize("         │  Type /leave to leave the current channel.                                 │", util.LightBlue)))
+	cs.addLocalMessage(util.Boldstring(util.Colorize("         │  Type /channels to list all active channels.                               │", util.LightBlue)))
+	cs.addLocalMessage(util.Boldstring(util.Colorize("         │  Type /users to list all active users.                                     │", util.LightBlue)))
+	cs.addLocalMessage(util.Boldstring(util.Colorize("         │  Type /tp <user> to teleport a user to your channel.                       │", util.LightBlue)))
+	cs.addLocalMessage(util.Boldstring(util.Colorize("         │  Type /msg <user> <msg> to send a private message.                         │", util.LightBlue)))
+	cs.addLocalMessage(util.Boldstring(util.Colorize("         │  Type /history <count> to show last N messages in the current channel.     │", util.LightBlue)))
+	cs.addLocalMessage(util.Boldstring(util.Colorize("         │  Type /quit to exit the chat server.                                       │", util.LightBlue)))
+	cs.addLocalMessage(util.Boldstring(util.Colorize("         └────────────────────────────────────────────────────────────────────────────┘", util.LightBlue)))
+
+	cs.addLocalMessage(util.Boldstring(util.Colorize("     Active users ("+strconv.Itoa(len(sessions))+"):", "")))
+	sessionsMutex.Lock()
+	for name := range sessions {
+		cs.addLocalMessage(util.Colorize("         "+name, ""))
+	}
+	sessionsMutex.Unlock()
+
+	cs.addLocalMessage(util.Boldstring(util.Colorize("     Active channels ("+strconv.Itoa(len(channels))+"):", util.Cyan)))
+	channelsMutex.Lock()
+	for channel, sessMap := range channels {
+		users := make([]string, 0, len(sessMap))
+		for sess := range sessMap {
+			users = append(users, sess.Username)
+		}
+		cs.addLocalMessage(util.Colorize("         "+channel+" ("+strings.Join(users, ", ")+")", util.Cyan))
+	}
+
+	channelsMutex.Unlock()
+}
+
 // HandleSession main entry point
 func HandleSession(s ssh.Session) {
 	// Possibly authenticate via GitHub public key
@@ -93,11 +153,11 @@ func HandleSession(s ssh.Session) {
 		return
 	}
 
-	termObj := term.NewTerminal(s, "> ")
+	termObj := term.NewTerminal(s, "")
 	cs := &ChatSession{
 		Session:  s,
 		Term:     termObj,
-		Prompt:   "> ",
+		Prompt:   "▶︎ ",
 		Username: s.User(),
 	}
 
@@ -111,19 +171,11 @@ func HandleSession(s ssh.Session) {
 	}
 
 	RegisterSession(cs)
-
-	// Welcome
-	cs.addLocalMessage(util.Boldstring(util.Colorize("==== Welcome to abap34's chat server! ====", "")))
-	cs.addLocalMessage("└ Your username is: " + util.Colorize(cs.Username, ""))
-	cs.addLocalMessage("")
-	cs.PrintHelp()
-	cs.addLocalMessage("")
-
-	// Join default channel
 	cs.JoinChannel("general")
 
-	// Draw initial screen
-	cs.redrawScreen()
+	// Welcome message
+	WelcomeMessage(cs)
+	cs.History(MESSAGE_LOAD_COUNT)
 
 	// Read user input line by line
 	for {
@@ -321,35 +373,6 @@ func (cs *ChatSession) PrintHelp() {
 	cs.addLocalMessage("  /quit                - Quit the session")
 }
 
-// JoinChannel puts user into a specific channel
-func (cs *ChatSession) JoinChannel(channel string) {
-	if cs.CurrentChannel != "" {
-		cs.LeaveChannel()
-	}
-
-	channelsMutex.Lock()
-	if channels[channel] == nil {
-		channels[channel] = make(map[*ChatSession]bool)
-	}
-	channels[channel][cs] = true
-	channelsMutex.Unlock()
-
-	cs.CurrentChannel = channel
-	cs.addLocalMessage("Joined channel [" + channel + "]")
-
-	msgs, err := db.LoadMessages(channel, MESSAGE_LOAD_COUNT)
-	if err != nil {
-		cs.addLocalMessage("Error loading history: " + err.Error())
-	} else if len(msgs) > 0 {
-		cs.addLocalMessage("Last messages in [" + channel + "]:")
-		for _, m := range msgs {
-			cs.addLocalMessage("  " + m)
-		}
-	}
-	broadcastMessage(channel, util.Colorize("*** "+cs.Username+" has joined ***", util.LightGrey), "system", cs)
-	log.Printf("User '%s' joined channel '%s'", cs.Username, channel)
-}
-
 // LeaveChannel exits the current channel
 func (cs *ChatSession) LeaveChannel() {
 	if cs.CurrentChannel == "" {
@@ -438,4 +461,27 @@ func (cs *ChatSession) History(count int) {
 			cs.addLocalMessage("  " + m)
 		}
 	}
+}
+
+// JoinChannel puts user into a specific channel
+func (cs *ChatSession) JoinChannel(channel string) {
+	if cs.CurrentChannel != "" {
+		cs.LeaveChannel()
+	}
+
+	channelsMutex.Lock()
+	if channels[channel] == nil {
+		channels[channel] = make(map[*ChatSession]bool)
+	}
+	channels[channel][cs] = true
+	channelsMutex.Unlock()
+
+	cs.CurrentChannel = channel
+	cs.addLocalMessage("Joined channel [" + channel + "]")
+
+	// history load
+	cs.History(MESSAGE_LOAD_COUNT)
+
+	broadcastMessage(channel, util.Colorize("*** "+cs.Username+" has joined ***", util.LightGrey), "system", cs)
+	log.Printf("User '%s' joined channel '%s'", cs.Username, channel)
 }
