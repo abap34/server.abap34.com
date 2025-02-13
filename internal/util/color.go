@@ -7,14 +7,6 @@ import (
 
 var (
 	// MEMO: We have to choose the color which is visible on the black background
-	availableColors = []string{
-		"\033[31m", // red
-		"\033[32m", // green
-		"\033[33m", // yellow
-		// "\033[34m", // blue
-		"\033[35m", // magenta
-		"\033[36m", // cyan
-	}
 	userColors      = make(map[string]string)
 	userColorsMutex sync.Mutex
 )
@@ -29,6 +21,7 @@ const (
 	Grey      = "\033[37m"
 	LightGrey = "\033[90m"
 	Reset     = "\033[0m"
+	LightBlue = "\033[94m"
 )
 
 func Colorize(username string, color string) string {
@@ -44,7 +37,9 @@ func Colorize(username string, color string) string {
 	}
 
 	if color == "" {
-		color = availableColors[rand.Intn(len(availableColors))]
+		// random color from color list
+		colors := []string{Red, Green, Yellow, Blue, Magenta, Cyan}
+		color = colors[rand.Intn(len(colors))]
 	}
 
 	userColors[username] = color
